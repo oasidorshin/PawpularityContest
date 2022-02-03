@@ -6,51 +6,13 @@ import timm
 
 
 class BaseTransformer(nn.Module):
-    def __init__(self, name="vit_base_patch16_224", pretrained=True, n_classes=1):
+    def __init__(self, name="swin_large_patch4_window7_224", pretrained=True, n_classes=1):
         super(BaseTransformer, self).__init__()
-        self.model = timm.create_model(name, pretrained=pretrained)
         self.n_classes = n_classes
-        # self.model.head = nn.Sequential(nn.Dropout(p =  dropout), nn.Linear(self.model.head.in_features, 1))
-        self.model.head = nn.Linear(self.model.head.in_features, n_classes)
+        self.model = timm.create_model(name, pretrained=pretrained, num_classes = self.n_classes)
 
     def forward(self, x):
         x = self.model(x)
-        if self.n_classes == 1:
-            return x.ravel()
-        else:
-            return x
-
-
-class BaseCNN_resnext(nn.Module):
-    def __init__(self, name="ig_resnext101_32x8d", pretrained=True, n_classes=1):
-        super(BaseCNN_resnext, self).__init__()
-        self.model = timm.create_model(name, pretrained=pretrained)
-        self.n_classes = n_classes
-        self.n_features = self.model.num_features
-        self.model.fc = nn.Identity()
-        self.fc = nn.Linear(self.n_features, self.n_classes)
-
-    def forward(self, x):
-        x = self.model(x)
-        x = self.fc(x)
-        if self.n_classes == 1:
-            return x.ravel()
-        else:
-            return x
-
-
-class BaseCNN_effnet(nn.Module):
-    def __init__(self, name="tf_efficientnet_b4_ns", pretrained=True, n_classes=1):
-        super(BaseCNN_effnet, self).__init__()
-        self.model = timm.create_model(name, pretrained=pretrained)
-        self.n_classes = n_classes
-        self.n_features = self.model.classifier.in_features
-        self.model.classifier = nn.Identity()
-        self.fc = nn.Linear(self.n_features, self.n_classes)
-
-    def forward(self, x):
-        x = self.model(x)
-        x = self.fc(x)
         if self.n_classes == 1:
             return x.ravel()
         else:
