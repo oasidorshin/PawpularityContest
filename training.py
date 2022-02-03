@@ -8,6 +8,8 @@ import timeit, logging
 
 from tqdm import tqdm
 
+from utils import deterministic_dataloader
+
 
 # https://github.com/facebookresearch/mixup-cifar10/blob/main/train.py
 def mixup_data(x, y, alpha=1.0, use_cuda=True):
@@ -37,9 +39,8 @@ def train_epoch(model,
                 metric=None,
                 mixup=0,
                 clip_grad_norm=0):
-    train_loss = []
-    train_metric = []
-
+    train_loss = torch.tensor(0.0, device=device)
+    train_metric = torch.tensor(0.0, device=device)
     model.train()
 
     for id_, X, target in tqdm(dataloader):
@@ -67,18 +68,18 @@ def train_epoch(model,
 
         if metric is not None:
             with torch.no_grad():
-                train_metric.append(metric(output, target).detach().item())
+                train_metric += metric(output, target).detach() * X.size(0)
 
-        train_loss.append(loss.detach().item())
+        train_loss += loss.detach() * X.size(0)
 
     if metric is not None:
-        return train_loss, train_metric
+        return train_loss.item() / len(dataloader.sampler), train_metric.item() / len(dataloader.sampler)
     else:
-        return train_loss
+        return train_loss.item() / len(dataloader.sampler)
 
 
 def valid_epoch(model, device, dataloader, loss_fn):
-    valid_loss = []
+    valid_loss = torch.tensor(0.0, device=device)
 
     model.eval()
 
@@ -89,9 +90,9 @@ def valid_epoch(model, device, dataloader, loss_fn):
             output = model(X)
             loss = loss_fn(output, target)
 
-            valid_loss.append(loss.detach().item())
+            valid_loss += loss.detach() * X.size(0)
 
-    return valid_loss
+    return valid_loss.item() / len(dataloader.sampler)
 
 
 def train_loop(model_class,
@@ -116,10 +117,13 @@ def train_loop(model_class,
 
         train_sampler = SubsetRandomSampler(train_idx)
         val_sampler = SubsetRandomSampler(val_idx)
+
+        seed_worker, g = deterministic_dataloader(args.seed)
+
         train_loader = DataLoader(train_dataset, batch_size=args.batch_size, sampler=train_sampler,
-                                  num_workers=args.num_workers, pin_memory=True)
+                                  num_workers=args.num_workers, pin_memory=True, worker_init_fn=seed_worker, generator=g)
         val_loader = DataLoader(val_dataset, batch_size=args.batch_size, sampler=val_sampler,
-                                num_workers=args.num_workers, pin_memory=True)
+                                num_workers=args.num_workers, pin_memory=True, worker_init_fn=seed_worker, generator=g)
 
         model = model_class(name=args.model_name, n_classes=args.n_classes, pretrained=args.pretrained)
         model.to(device)

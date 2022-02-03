@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+
+models/
+petfinder-adoption-prediction/
+petfinder-pawpularity-score/
+csv/
